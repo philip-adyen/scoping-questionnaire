@@ -7,7 +7,7 @@ const STORAGE_KEY = 'adyen-scoping-questionnaire';
 
 // ⚠️ REPLACE THIS with your Google Apps Script Web App URL
 // Follow the instructions in SETUP.md to get this URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwa7RTIudArxFL_8Uc8nYcFXkftHKxEbge5dc4WUw5tqvKfXt26GouJh7BgdxZmuEE/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbywfZyyzOEVQGzKc-7_jHLqwkZxfFvg4bEy6e0HBo16cye6D6L5BLGmQQdtYIsP35U/exec';
 
 const questionnaire = {
   sections: [
