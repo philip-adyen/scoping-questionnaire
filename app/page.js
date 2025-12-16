@@ -182,15 +182,20 @@ export default function AdyenQuestionnaire() {
   const manualSave = () => { const d = { answers, currentSection, lastSaved: Date.now(), progress: calculateProgress(answers) }; try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); setLastSaved(Date.now()); setSaveNotification(true); setTimeout(() => setSaveNotification(false), 2000); } catch (e) {} };
 
   const submitToGoogleSheets = async () => {
-    setSubmitStatus('submitting');
-    const flatData = { timestamp: new Date().toISOString(), ...answers };
-    Object.keys(flatData).forEach(k => { if (Array.isArray(flatData[k])) flatData[k] = flatData[k].join(', '); });
-    try {
-      await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(flatData) });
-      setSubmitStatus('success');
-      localStorage.removeItem(STORAGE_KEY);
-    } catch (e) { setSubmitStatus('error'); }
-  };
+  setSubmitStatus('submitting');
+  const flatData = { timestamp: new Date().toISOString(), ...answers };
+  Object.keys(flatData).forEach(k => { if (Array.isArray(flatData[k])) flatData[k] = flatData[k].join(', '); });
+  try {
+    await fetch(GOOGLE_SCRIPT_URL, { 
+      method: 'POST', 
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' }, 
+      body: JSON.stringify(flatData) 
+    });
+    setSubmitStatus('success');
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) { setSubmitStatus('error'); }
+};
 
   const visibleSections = questionnaire.sections.filter(s => { if (!s.conditional) return true; const { questionId, includes } = s.conditional; const a = answers[questionId]; if (!a) return false; return includes.some(v => a.includes?.(v) || a === v); });
   const section = visibleSections[currentSection];
