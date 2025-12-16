@@ -35,7 +35,7 @@ const questionnaire = {
       questions: [
         { id: 'countries', label: 'Which countries/regions will you operate in?', type: 'multiselect', options: ['United States', 'Canada', 'United Kingdom', 'European Union', 'Australia', 'Other'], help: 'Select all regions where you need payment processing', docLink: 'https://docs.adyen.com/platforms' },
         { id: 'business_model', label: 'What is your business model?', type: 'select', options: [{ value: 'mor', label: 'Merchant of Record (MOR)', desc: 'You process payments on behalf of sellers' }, { value: 'payfac', label: 'Payment Facilitator (PayFac)', desc: 'You onboard sub-merchants under your account' }, { value: 'partner', label: 'Partner Model', desc: 'You refer merchants to Adyen' }], help: 'This determines how payments flow through your platform', docLink: 'https://docs.adyen.com/platforms/account-structure-resources/platform-structure' },
-        { id: 'channels', label: 'Which payment channels will you implement?', type: 'multiselect', options: ['In-Person (IPP/POS)', 'E-commerce (Online)', 'Both'], help: 'Select all channels you need' },
+        { id: 'channels', label: 'Which payment channels will you implement?', type: 'multiselect', options: ['In-Person (IPP/POS)', 'E-commerce (Online)'], help: 'Select all that apply. The In-Person section will appear if you select IPP/POS.' },
       ]
     },
     {
@@ -122,7 +122,7 @@ const questionnaire = {
       title: 'In-Person Payments',
       icon: CreditCard,
       description: 'Terminal and POS configuration',
-      conditional: { questionId: 'channels', includes: ['In-Person (IPP/POS)', 'Both'] },
+      conditional: { questionId: 'channels', includes: ['In-Person (IPP/POS)'] },
       docLink: 'https://docs.adyen.com/point-of-sale',
       questions: [
         { id: 'terminal_models', label: 'Which terminal model(s) do you need?', type: 'multiselect', options: ['S1F2 (Countertop)', 'NYC1 (Mobile/Tap to Pay)', 'AMS1 (Portable)'], help: 'Adyen offers various terminal types for different use cases', docLink: 'https://docs.adyen.com/point-of-sale/what-we-support/select-your-terminals' },
@@ -182,20 +182,15 @@ export default function AdyenQuestionnaire() {
   const manualSave = () => { const d = { answers, currentSection, lastSaved: Date.now(), progress: calculateProgress(answers) }; try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); setLastSaved(Date.now()); setSaveNotification(true); setTimeout(() => setSaveNotification(false), 2000); } catch (e) {} };
 
   const submitToGoogleSheets = async () => {
-  setSubmitStatus('submitting');
-  const flatData = { timestamp: new Date().toISOString(), ...answers };
-  Object.keys(flatData).forEach(k => { if (Array.isArray(flatData[k])) flatData[k] = flatData[k].join(', '); });
-  try {
-    await fetch(GOOGLE_SCRIPT_URL, { 
-      method: 'POST', 
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain' }, 
-      body: JSON.stringify(flatData) 
-    });
-    setSubmitStatus('success');
-    localStorage.removeItem(STORAGE_KEY);
-  } catch (e) { setSubmitStatus('error'); }
-};
+    setSubmitStatus('submitting');
+    const flatData = { timestamp: new Date().toISOString(), ...answers };
+    Object.keys(flatData).forEach(k => { if (Array.isArray(flatData[k])) flatData[k] = flatData[k].join(', '); });
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(flatData) });
+      setSubmitStatus('success');
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) { setSubmitStatus('error'); }
+  };
 
   const visibleSections = questionnaire.sections.filter(s => { if (!s.conditional) return true; const { questionId, includes } = s.conditional; const a = answers[questionId]; if (!a) return false; return includes.some(v => a.includes?.(v) || a === v); });
   const section = visibleSections[currentSection];
@@ -212,7 +207,7 @@ export default function AdyenQuestionnaire() {
     const v = answers[q.id];
     switch (q.type) {
       case 'text': return <input type="text" value={v || ''} onChange={e => updateAnswer(q.id, e.target.value)} placeholder={q.placeholder} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all" />;
-      case 'number': return <input type="number" value={v || ''} onChange={e => updateAnswer(q.id, e.target.value)} placeholder={q.placeholder} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all" />;
+      case 'number': return <input type="number" min="0" value={v || ''} onChange={e => updateAnswer(q.id, e.target.value)} placeholder={q.placeholder} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all" />;
       case 'date': return <input type="date" value={v || ''} onChange={e => updateAnswer(q.id, e.target.value)} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all" />;
       case 'textarea': return <textarea value={v || ''} onChange={e => updateAnswer(q.id, e.target.value)} placeholder={q.placeholder} rows={4} className="w-full px-4 py-3 bg-slate-800/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500/50 focus:ring-2 focus:ring-emerald-500/20 transition-all resize-none" />;
       case 'select': return <div className="space-y-2">{q.options.map(o => { const ov = typeof o === 'string' ? o : o.value, ol = typeof o === 'string' ? o : o.label, od = typeof o === 'string' ? null : o.desc, sel = v === ov; return <button key={ov} onClick={() => updateAnswer(q.id, ov)} className={`w-full p-4 rounded-xl text-left transition-all border ${sel ? 'bg-emerald-500/20 border-emerald-500/50 text-white' : 'bg-slate-800/30 border-slate-700/50 text-slate-300 hover:bg-slate-700/50 hover:border-slate-600'}`}><div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${sel ? 'border-emerald-500 bg-emerald-500' : 'border-slate-500'}`}>{sel && <Check size={12} className="text-white" />}</div><div><div className="font-medium">{ol}</div>{od && <div className="text-sm text-slate-400 mt-0.5">{od}</div>}</div></div></button>; })}</div>;
@@ -261,7 +256,7 @@ export default function AdyenQuestionnaire() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       {saveNotification && <div className="fixed top-4 right-4 bg-emerald-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2"><Check size={16} />Progress saved!</div>}
       <div className="fixed top-0 left-0 right-0 h-1 bg-slate-700 z-50"><div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500" style={{ width: `${progress}%` }} /></div>
-      <div className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40"><div className="max-w-2xl mx-auto px-6 py-4"><div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center"><Icon size={20} className="text-emerald-400" /></div><div><h1 className="font-bold text-lg">{section.title}</h1><p className="text-sm text-slate-400">{section.description}</p></div></div><div className="flex items-center gap-4">{section.docLink && <DocLink url={section.docLink}>View Docs</DocLink>}<div className="text-sm text-slate-400">{currentSection + 1} / {visibleSections.length}</div></div></div></div></div>
+      <div className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-40"><div className="max-w-2xl mx-auto px-6 py-4">{currentSection === 0 && <div className="mb-4 px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-300">💡 All fields are optional. Answer what you know and skip the rest.</div>}<div className="flex items-center justify-between"><div className="flex items-center gap-3"><div className="w-10 h-10 bg-emerald-500/20 rounded-xl flex items-center justify-center"><Icon size={20} className="text-emerald-400" /></div><div><h1 className="font-bold text-lg">{section.title}</h1><p className="text-sm text-slate-400">{section.description}</p></div></div><div className="flex items-center gap-4">{section.docLink && <DocLink url={section.docLink}>View Docs</DocLink>}<div className="text-sm text-slate-400">{currentSection + 1} / {visibleSections.length}</div></div></div></div></div>
       <div className="max-w-2xl mx-auto px-6 py-4"><div className="flex gap-2 overflow-x-auto pb-2" style={{ scrollbarWidth: 'none' }}>{visibleSections.map((s, i) => { const SI = s.icon; return <button key={s.id} onClick={() => setCurrentSection(i)} className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${i === currentSection ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : i < currentSection ? 'bg-slate-700/50 text-slate-300' : 'bg-slate-800/30 text-slate-500'}`}><SI size={14} />{s.title}</button>; })}</div></div>
       <div className="max-w-2xl mx-auto px-6 pb-32"><div className="space-y-8 mt-4">{section.questions.map((q, i) => <div key={q.id} style={{ animation: `fadeIn 0.4s ease-out ${i * 0.1}s forwards`, opacity: 0 }}><div className="flex items-start justify-between mb-3"><label className="text-lg font-medium text-white">{q.label}</label><div className="flex items-center gap-2">{q.docLink && <DocLink url={q.docLink}>Docs</DocLink>}{q.help && <button onClick={() => setShowHelp(showHelp === q.id ? null : q.id)} className="text-slate-400 hover:text-emerald-400"><HelpCircle size={18} /></button>}</div></div>{showHelp === q.id && <div className="mb-3 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-sm text-emerald-300">{q.help}</div>}{renderQuestion(q)}</div>)}</div></div>
       <div className="fixed bottom-0 left-0 right-0 bg-slate-900/90 backdrop-blur-sm border-t border-slate-700/50"><div className="max-w-2xl mx-auto px-6 py-4">{lastSaved && <div className="flex items-center justify-center gap-2 text-xs text-slate-500 mb-3"><Clock size={12} />Auto-saved {formatDateTime(lastSaved)}</div>}<div className="flex items-center justify-between"><button onClick={prevSection} disabled={currentSection === 0} className={`flex items-center gap-2 px-5 py-3 rounded-xl font-medium ${currentSection === 0 ? 'text-slate-600 cursor-not-allowed' : 'text-slate-300 hover:bg-slate-700/50'}`}><ChevronLeft size={18} />Previous</button><button onClick={manualSave} className="flex items-center gap-2 px-4 py-3 text-slate-300 hover:bg-slate-700/50 rounded-xl font-medium"><Save size={18} />Save & Exit</button><button onClick={nextSection} className="flex items-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-medium">{currentSection === visibleSections.length - 1 ? 'Review & Submit' : 'Next'}<ChevronRight size={18} /></button></div></div></div>
